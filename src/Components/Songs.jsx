@@ -7,144 +7,114 @@ import './sidebar.css'
 function Songs() {
   const [items, setItems] = useState([]);
   const [wishlist, setWishlist] = useState([]);
-  const [playlist, setPlaylist] = useState([]);  
+  const [playlist, setPlaylist] = useState([]);
   const [currentlyPlaying, setCurrentlyPlaying] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
+    console.log('🔍 Songs component loading...');
+    
     // Fetch all items
     axios.get('http://localhost:3000/items')
-      .then(response => setItems(response.data))
-      .catch(error => console.error('Error fetching items: ', error));
+      .then(response => {
+        console.log('✅ Fetched items:', response.data);
+        console.log('📊 Number of songs:', response.data.length);
+        setItems(response.data);
+      })
+      .catch(error => console.error('❌ Error fetching items:', error));
 
-  // Fetch favorities items
-      axios.get('http://localhost:3000/favorities')
+    // Fetch favorites
+    axios.get('http://localhost:3000/favorites')
       .then(response => setWishlist(response.data))
       .catch(error => {
-        console.error('Error fetching Favvorities:', error);
-        // Initialize wishlist as an empty array in case of an error
+        console.error('Error fetching favorites:', error);
         setWishlist([]);
       });
-  
-    // Fetch playlist items
+
+    // Fetch playlist
     axios.get('http://localhost:3000/playlist')
       .then(response => setPlaylist(response.data))
       .catch(error => {
-        console.error('Error fetching playlist: ', error);
-        // Initialize playlist as an empty array in case of an error
+        console.error('Error fetching playlist:', error);
         setPlaylist([]);
       });
-      // Function to handle audio play
-    const handleAudioPlay = (itemId, audioElement) => {
-        if (currentlyPlaying && currentlyPlaying !== audioElement) {
-          currentlyPlaying.pause(); // Pause the currently playing audio
-        }
-        setCurrentlyPlaying(audioElement); // Update the currently playing audio
-       
-      };
-  
-      // Event listener to handle audio play
-      const handlePlay = (itemId, audioElement) => {
-        audioElement.addEventListener('play', () => {
-          handleAudioPlay(itemId, audioElement);
-        });
-      };
-  
-      // Add event listeners for each audio element
-      items.forEach((item) => {
-        const audioElement = document.getElementById(`audio-${item.id}`);
-        if (audioElement) {
-          handlePlay(item.id, audioElement);
-        }
-      });
-  
-      // Cleanup event listeners
-      return () => {
-        items.forEach((item) => {
-          const audioElement = document.getElementById(`audio-${item.id}`);
-          if (audioElement) {
-            audioElement.removeEventListener('play', () => handleAudioPlay(item.id, audioElement));
-          }
-        });
-      };
-  }, [items,currentlyPlaying, searchTerm]);
-  
+  }, []);
 
+  // Add to wishlist function
   const addToWishlist = async (itemId) => {
     try {
-      const selectedItem = items.find((item) => item.id === itemId);
-      if (!selectedItem) {
-        throw new Error('Selected item not found');
+      const selectedItem = items.find(item => item.id === itemId);
+      if (selectedItem) {
+        await axios.post('http://localhost:3000/favorites', {
+          itemId: selectedItem.id,
+          ...selectedItem
+        });
+        const response = await axios.get('http://localhost:3000/favorites');
+        setWishlist(response.data);
       }
-      const { title, imgUrl, genre, songUrl, singer, id: itemId2 } = selectedItem;
-      await axios.post('http://localhost:3000/favorities', { itemId: itemId2, title, imgUrl, genre, songUrl, singer });
-      const response = await axios.get('http://localhost:3000/favorities');
-      setWishlist(response.data);
     } catch (error) {
-      console.error('Error adding item to wishlist: ', error);
+      console.error('Error adding to wishlist:', error);
     }
   };
 
+  // Remove from wishlist function
   const removeFromWishlist = async (itemId) => {
     try {
-      // Find the item in the wishlist by itemId
       const selectedItem = wishlist.find((item) => item.itemId === itemId);
-      if (!selectedItem) {
-        throw new Error('Selected item not found in wishlist');
+      if (selectedItem) {
+        await axios.delete(`http://localhost:3000/favorites/${selectedItem.id}`);
+        const response = await axios.get('http://localhost:3000/favorites');
+        setWishlist(response.data);
       }
-      // Make a DELETE request to remove the item from the wishlist
-      await axios.delete(`http://localhost:3000/favorities/${selectedItem.id}`);
-      // Refresh the wishlist items
-      const response = await axios.get('http://localhost:3000/favorities');
-      setWishlist(response.data);
     } catch (error) {
-      console.error('Error removing item from wishlist: ', error);
+      console.error('Error removing from wishlist:', error);
     }
   };
-  
+
+  // Add to playlist function
+  const addToPlaylist = async (itemId) => {
+    try {
+      const selectedItem = items.find(item => item.id === itemId);
+      if (selectedItem) {
+        await axios.post('http://localhost:3000/playlist', {
+          itemId: selectedItem.id,
+          ...selectedItem
+        });
+        const response = await axios.get('http://localhost:3000/playlist');
+        setPlaylist(response.data);
+      }
+    } catch (error) {
+      console.error('Error adding to playlist:', error);
+    }
+  };
+
+  // Remove from playlist function
+  const removeFromPlaylist = async (itemId) => {
+    try {
+      const selectedItem = playlist.find((item) => item.itemId === itemId);
+      if (selectedItem) {
+        await axios.delete(`http://localhost:3000/playlist/${selectedItem.id}`);
+        const response = await axios.get('http://localhost:3000/playlist');
+        setPlaylist(response.data);
+      }
+    } catch (error) {
+      console.error('Error removing from playlist:', error);
+    }
+  };
+
+  // Check if item is in wishlist
   const isItemInWishlist = (itemId) => {
     return wishlist.some((item) => item.itemId === itemId);
   };
 
-  
-  const addToPlaylist = async (itemId) => {
-    try {
-      const selectedItem = items.find((item) => item.id === itemId);
-      if (!selectedItem) {
-        throw new Error('Selected item not found');
-      }
-      const { title, imgUrl, genre, songUrl, singer, id: itemId2 } = selectedItem;
-      await axios.post('http://localhost:3000/playlist', { itemId: itemId2, title, imgUrl, genre, songUrl, singer });
-      const response = await axios.get('http://localhost:3000/playlist');
-      setPlaylist(response.data);
-    } catch (error) {
-      console.error('Error adding item to wishlist: ', error);
-    }
-  };
-
-  const removeFromPlaylist = async (itemId) => {
-    try {
-      // Find the item in the wishlist by itemId
-      const selectedItem = playlist.find((item) => item.itemId === itemId);
-      if (!selectedItem) {
-        throw new Error('Selected item not found in wishlist');
-      }
-      // Make a DELETE request to remove the item from the wishlist
-      await axios.delete(`http://localhost:3000/playlist/${selectedItem.id}`);
-      // Refresh the wishlist items
-      const response = await axios.get('http://localhost:3000/playlist');
-      setPlaylist(response.data);
-    } catch (error) {
-      console.error('Error removing item from wishlist: ', error);
-    }
-  };
-  
+  // Check if item is in playlist
   const isItemInPlaylist = (itemId) => {
     return playlist.some((item) => item.itemId === itemId);
   };
 
-
+  // Filter songs based on search term
   const filteredItems = items.filter((item) => {
+    if (!searchTerm) return true;
     const lowerCaseQuery = searchTerm.toLowerCase();
     return (
       item.title.toLowerCase().includes(lowerCaseQuery) ||
@@ -153,12 +123,16 @@ function Songs() {
     );
   });
 
+  console.log('🎵 Current items in state:', items);
+  console.log('🔍 Filtered items:', filteredItems);
 
-    return (
-      <div style={{display:"flex", justifyContent:"flex-end"}}>
+  return (
+    <div style={{display:"flex", justifyContent:"flex-end"}}>
       <div className="songs-container" style={{width:"1300px"}}>
         <div className="container mx-auto p-3">
           <h2 className="text-3xl font-semibold mb-4 text-center">Songs List</h2>
+          <p>Total songs: {items.length}</p> {/* Debug info */}
+          
           <InputGroup className="mb-3">
             <InputGroup.Text id="search-icon">
               <FaSearch />
@@ -172,6 +146,20 @@ function Songs() {
             />
           </InputGroup>
           <br />
+
+          {/* Show loading or no results message */}
+          {items.length === 0 && (
+            <div className="text-center">
+              <p>Loading songs...</p>
+            </div>
+          )}
+
+          {filteredItems.length === 0 && items.length > 0 && (
+            <div className="text-center">
+              <p>No songs found matching your search.</p>
+            </div>
+          )}
+
           <div className="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
             {filteredItems.map((item, index) => (
               <div key={item.id} className="col">
@@ -181,6 +169,9 @@ function Songs() {
                     alt="Item Image"
                     className="card-img-top rounded-top"
                     style={{ height: '200px', width: '100%' }}
+                    onError={(e) => {
+                      e.target.src = '/default-album.jpg';
+                    }}
                   />
                   <div className="card-body">
                     <div className="d-flex justify-content-between align-items-center mb-2">
@@ -230,8 +221,8 @@ function Songs() {
           </div>
         </div>
       </div>
-      </div>
-    );
-  }
+    </div>
+  );
+}
 
 export default Songs;
